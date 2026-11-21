@@ -1,0 +1,1 @@
+export { JustifiedGrid } from '../JustifiedGrid';

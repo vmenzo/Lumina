@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lumina 光匣扩展设置</title>
+  <style>
+    body { width: 300px; margin: 0; padding: 16px; background: #0e0e12; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; }
+    h1 { font-size: 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+    .badge { width: 22px; height: 22px; border-radius: 6px; background: #fff; color: #111; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px; }
+    label { display: block; color: #a1a1aa; margin: 10px 0 4px; font-size: 11px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: #18181d; color: #fff; outline: none; font-size: 12px; }
+    button { width: 100%; margin-top: 14px; padding: 9px; border: 0; border-radius: 10px; background: #fff; color: #111; font-weight: 600; cursor: pointer; }
+    #status { margin-top: 8px; text-align: center; color: #34d399; min-height: 16px; }
+  </style>
+</head>
+<body>
+  <h1><span class="badge">LU</span> Lumina 光匣右键转存</h1>
+  <label>图床站点地址 (例如 https://img.example.com)</label>
+  <input id="serverUrl" type="url" placeholder="https://img.example.com" />
+  <label>API Token (在图床 API 页面创建)</label>
+  <input id="apiToken" type="password" placeholder="lum_..." />
+  <label>转存后自动复制格式</label>
+  <select id="copyFormat">
+    <option value="markdown">Markdown (![name](url))</option>
+    <option value="direct">原图直链 (URL)</option>
+    <option value="html">HTML (&lt;img ... /&gt;)</option>
+  </select>
+  <button id="saveBtn">保存配置</button>
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

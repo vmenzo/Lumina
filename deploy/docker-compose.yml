@@ -1,0 +1,211 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lumina-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lumina}
+      POSTGRES_USER: ${POSTGRES_USER:-lumina}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumina_pg_strong_password}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ../apps/api/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lumina} -d ${POSTGRES_DB:-lumina}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - lumina-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: lumina-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-lumina_redis_strong_password}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-lumina_redis_strong_password}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - lumina-net
+
+  imgproxy:
+    image: darthsim/imgproxy:latest
+    container_name: lumina-imgproxy
+    restart: unless-stopped
+    environment:
+      IMGPROXY_KEY: ${IMGPROXY_KEY}
+      IMGPROXY_SALT: ${IMGPROXY_SALT}
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /data/uploads
+      IMGPROXY_USE_S3: ${R2_ENABLED:-false}
+      IMGPROXY_S3_ENDPOINT: ${R2_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      AWS_REGION: auto
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+      IMGPROXY_ENABLE_AVIF_DETECTION: "true"
+      IMGPROXY_STRIP_METADATA: "true"
+      IMGPROXY_MAX_SRC_RESOLUTION: 64
+      IMGPROXY_TTL: 31536000
+    volumes:
+      - ../data/uploads:/data/uploads:ro
+    networks:
+      - lumina-net
+
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    container_name: lumina-api
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD:-lumina_pg_strong_password}@postgres:5432/${POSTGRES_DB:-lumina}?sslmode=disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-lumina_redis_strong_password}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost}
+      CDN_PUBLIC_URL: ${CDN_PUBLIC_URL:-http://localhost}
+      JWT_SECRET: ${JWT_SECRET}
+      LOCAL_SIGN_SECRET: ${LOCAL_SIGN_SECRET}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMe_StrongPass123!}
+      LOCAL_STORAGE_PATH: /data/uploads
+      LOCAL_ENABLED: ${LOCAL_ENABLED:-true}
+      R2_ENABLED: ${R2_ENABLED:-false}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      SMART_ROUTE_THRESHOLD_MB: ${SMART_ROUTE_THRESHOLD_MB:-5}
+      IMGPROXY_KEY: ${IMGPROXY_KEY}
+      IMGPROXY_SALT: ${IMGPROXY_SALT}
+      CF_ZONE_ID: ${CF_ZONE_ID:-}
+      CF_API_TOKEN: ${CF_API_TOKEN:-}
+      MODERATION_WEBHOOK_URL: ${MODERATION_WEBHOOK_URL:-}
+      MODERATION_WEBHOOK_SECRET: ${MODERATION_WEBHOOK_SECRET:-}
+      UPLOAD_WEBHOOK_URL: ${UPLOAD_WEBHOOK_URL:-}
+      UPLOAD_WEBHOOK_SECRET: ${UPLOAD_WEBHOOK_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      AI_API_BASE: ${AI_API_BASE:-https://api.openai.com/v1}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes:
+      - ../data/uploads:/data/uploads
+    networks:
+      - lumina-net
+
+  worker:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    command: ["/app/lumina-worker"]
+    container_name: lumina-worker
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD:-lumina_pg_strong_password}@postgres:5432/${POSTGRES_DB:-lumina}?sslmode=disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-lumina_redis_strong_password}
+      LOCAL_STORAGE_PATH: /data/uploads
+      LOCAL_ENABLED: ${LOCAL_ENABLED:-true}
+      R2_ENABLED: ${R2_ENABLED:-false}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost}
+      CDN_PUBLIC_URL: ${CDN_PUBLIC_URL:-http://localhost}
+      LOCAL_SIGN_SECRET: ${LOCAL_SIGN_SECRET}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      CF_ZONE_ID: ${CF_ZONE_ID:-}
+      CF_API_TOKEN: ${CF_API_TOKEN:-}
+      MODERATION_WEBHOOK_URL: ${MODERATION_WEBHOOK_URL:-}
+      MODERATION_WEBHOOK_SECRET: ${MODERATION_WEBHOOK_SECRET:-}
+      UPLOAD_WEBHOOK_URL: ${UPLOAD_WEBHOOK_URL:-}
+      UPLOAD_WEBHOOK_SECRET: ${UPLOAD_WEBHOOK_SECRET:-}
+    volumes:
+      - ../data/uploads:/data/uploads
+    networks:
+      - lumina-net
+
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+    container_name: lumina-web
+    logging: *default-logging
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      INTERNAL_API_URL: http://api:8080
+    depends_on:
+      - api
+    networks:
+      - lumina-net
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: lumina-caddy
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      - web
+      - api
+      - imgproxy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-:80}
+      CDN_DOMAIN: ${CDN_DOMAIN:-:8088}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - lumina-net
+
+volumes:
+  pg_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  lumina-net:
+    driver: bridge

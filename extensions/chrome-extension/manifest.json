@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Lumina 光匣 · 一键右键转存图床",
+  "version": "4.0.0",
+  "description": "在任意网页右键图片一键转存至你的 Lumina 自托管图床，并自动复制直链或 Markdown。",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "notifications",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Lumina 光匣设置",
+    "default_icon": "icon.png"
+  },
+  "icons": {
+    "128": "icon.png"
+  }
+}
