@@ -13,8 +13,17 @@
 ## 一键安装与升级
 
 ```bash
-unzip lumina-img-v4.zip && cd lumina-img
-bash install.sh
+git clone https://github.com/vmenzo/Lumina.git && cd Lumina && bash install.sh
 ```
+
+安装脚本会一步步带你走完（共 5 步）：
+
+1. 检查运行环境：没有 Docker 会问你要不要自动装，需要 Docker Compose v2。
+2. 选部署模式：`1` 域名模式（HTTPS，Caddy 自动申请证书）或 `2` IP 模式（HTTP `:80`）。
+3. 填管理员账号（用户名、邮箱、密码）和存储：外部 S3 / R2 可选，不填就只用本机存储。
+4. 生成 `.env` 配置文件：已有 `.env` 会先备份，数据库、JWT、imgproxy 等密钥会沿用原来的，不会丢。
+5. 构建并启动容器：启动后会等 `/api/health` 就绪（最多等 60 秒）。
+
+装完会打印访问地址、管理员账号和密码，以及常用命令（`make logs` 看日志、`make down` 停服务、`make backup-db` 备份数据库）。
 
 > 已有旧版本环境升级时，保留原 `.env` 与数据卷，直接执行 `make up`（域名 HTTPS 模式）或 `make up-local`（无域名 IP 模式）即可平滑升级，数据库会自动补齐新增表结构与索引。
